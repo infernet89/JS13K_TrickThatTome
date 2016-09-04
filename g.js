@@ -10,9 +10,26 @@ var canvasH;
 var ctx;
 var activeTask;
 var level=1;//0 menu TODO
-var fieldStatus=["","","","","","","","",""];//""=vuoto; "rX"=red x; "rO"=red circle; "gX" = green X; "gO" = green O
+var fieldStatus=[0,0,0,0,0,0,0,0,0];//0=vuoto; 1=red x; 2=green circle; 3=green x; 4=red Circle
 var player1Turn=true;
-var randomPossibilities=["","rX","rO","gX","gO"];
+var movePossibilities=["","rX","gO"]//,"gX","rO"];
+var rules=[Array("The player who succeeds in",
+                 "placing three of their marks",
+                 "in a horizontal, vertical,",
+                 "or diagonal row wins."),
+            Array("","","")];
+var activeRules=0;
+var isPlayer1Circle=true;
+var isPlayer1Turn=true;
+var endGame=false;
+var isPlayer1Winner=false;
+var isEnemyWinner=false;
+var isCircleWinner=false;
+var isCrossWinner=false;
+var circleWinnerStatuses=[];
+var crossWinnerStatuses=[];
+var drawStatuses=[];
+var graph=[];
 
 //mobile controls
 var mousex=-100;
@@ -41,6 +58,8 @@ canvas.addEventListener("mouseup",rilasciatoMouse);
 
 activeTask=setInterval(run, 33);
 //Initialize
+precalculateEverything();
+startGame();//TODO debug toglimi
 
 //pictures
 
@@ -56,7 +75,10 @@ function run()
         var index=translateCoordInFieldIndex(mousex,mousey);
         if(index>=0)
         {
-            fieldStatus[index]=randomPossibilities[rand(0,randomPossibilities.length)];
+            if(isPlayer1Circle)
+                fieldStatus[index]=2;
+            else
+                fieldStatus[index]=1;
             dragging=false;
         }
     }
@@ -66,10 +88,153 @@ function run()
     if(level==0)
     {
         for(i=0;i<9;i++)
-            fieldStatus[i]=randomPossibilities[rand(0,randomPossibilities.length)];
+            fieldStatus[i]=rand(0,movePossibilities.length);
+    }
+    else
+    {
+        checkEndingCondition();
+        drawHud();
     }
 }
+function checkEndingCondition()
+{
+    endGame=false;
+    isCircleWinner=false;
+    isCrossWinner=false;
 
+    if(activeRules==0)
+    {
+        //dall'angolo 0
+        if( fieldStatus[0]!=0 &&
+            (fieldStatus[0]==fieldStatus[1] && fieldStatus[0]==fieldStatus[2]) ||
+            (fieldStatus[0]==fieldStatus[3] && fieldStatus[0]==fieldStatus[6]) ||
+            (fieldStatus[0]==fieldStatus[4] && fieldStatus[0]==fieldStatus[8]) )
+        {
+            if(fieldStatus[0]==2)
+                isCircleWinner=true;
+            else if(fieldStatus[0]==1)
+                isCrossWinner=true;
+            endGame=true;
+        }
+        //dall'angolo 8
+        if( fieldStatus[8]!=0 &&
+            (fieldStatus[8]==fieldStatus[5] && fieldStatus[8]==fieldStatus[2]) ||
+            (fieldStatus[8]==fieldStatus[7] && fieldStatus[8]==fieldStatus[6]) )
+        {
+            if(fieldStatus[8]==2)
+                isCircleWinner=true;
+            else if(fieldStatus[8]==1)
+                isCrossWinner=true;
+            endGame=true;
+        }
+        //dal centro
+        if( fieldStatus[4]!=0 &&
+            (fieldStatus[4]==fieldStatus[1] && fieldStatus[4]==fieldStatus[7]) ||
+            (fieldStatus[4]==fieldStatus[3] && fieldStatus[4]==fieldStatus[5]) ||
+            (fieldStatus[4]==fieldStatus[6] && fieldStatus[4]==fieldStatus[2]) )
+        {
+            if(fieldStatus[4]==2)
+                isCircleWinner=true;
+            else if(fieldStatus[4]==1)
+                isCrossWinner=true;
+            endGame=true;
+        }
+        //no more places left
+        if(fieldStatus.indexOf(0)==-1)
+            endGame=true;
+    }
+
+
+    if(isCircleWinner==isCrossWinner)
+    {
+        isPlayer1Winner=isCircleWinner;
+        isEnemyWinner=isCrossWinner;
+    }
+    else if(isCircleWinner)
+    {
+        isPlayer1Winner=isPlayer1Circle;
+    }
+    else if(isCrossWinner)
+    {
+        isPlayer1Winner=!isPlayer1Circle;
+    }
+    return endGame;
+}
+function drawHud()
+{
+    ctx.fillStyle="#FFF"
+    ctx.font = "30px Verdana";
+    ctx.fillText("RULES",50,280);
+    ctx.font = "14px Verdana";
+    var offset=0;
+    for(line of rules[activeRules])
+    {
+        ctx.fillText(line,10,330+offset);
+        offset+=20;
+    }
+    ctx.font = "30px Verdana";
+    ctx.fillText("You are ",10,550);
+    if(isPlayer1Circle)
+        drawCircle(150,540,15,"#0F0");
+    else
+        drawCross(150,540,15,"#F00");
+    if(isPlayer1Turn)
+        ctx.fillText("Your turn",320,50);
+    else
+        ctx.fillText("Enemy turn",320,50);
+    ctx.font = "35px Verdana";    
+
+    if(isPlayer1Winner && isEnemyWinner)
+        ctx.fillText("Draw!",350,575);
+    else if(isPlayer1Winner)
+        ctx.fillText("You won!",320,575);
+    else if(isEnemyWinner)
+        ctx.fillText("You lost!",320,575);
+    else
+        ctx.fillText(fieldStatusToInt(fieldStatus),320,575);
+}
+function startGame()
+{
+    isPlayer1Turn=flipCoin();
+    isPlayer1Circle=flipCoin();
+    fieldStatus=[0,0,0,0,0,0,0,0,0]
+    isPlayer1Winner=false;
+    isEnemyWinner=false;
+    isCircleWinner=false;
+    isCrossWinner=false;
+    endGame=false;
+}
+function flipCoin()
+{
+    if(rand(0,1))
+        return false;
+    else
+        return true;
+}
+function IntTofieldStatus(number)
+{
+    var i;
+    var base=movePossibilities.length;
+    var tmp=[];
+    for(i=8;i>=0;i--)
+    {
+        tmp[i]=number%base;
+        number=number-tmp[i];
+        number/=base;
+    }
+    return tmp;
+}
+function fieldStatusToInt(status)
+{
+    var ris=0;
+    var base=movePossibilities.length;
+    for(el of status)
+    {
+        ris*=base;
+        ris+=el;
+    }
+    return ris;
+}
 function translateCoordInFieldIndex(x,y)
 {//< >
     var index=-1;
@@ -120,13 +285,13 @@ function drawPlayField()
     y=250;
     for(i=0;i<9;i++)
     {
-        if(fieldStatus[i]=="rO")
-            drawCircle(x,y,25,"#F00");
-        else if(fieldStatus[i]=="gO")
+        if(fieldStatus[i]==2)
             drawCircle(x,y,25,"#0F0");
-        else if(fieldStatus[i]=="rX")
+        else if(fieldStatus[i]==4)
+            drawCircle(x,y,25,"#F00");
+        else if(fieldStatus[i]==1)
             drawCross(x,y,25,"#F00");
-        else if(fieldStatus[i]=="gX")
+        else if(fieldStatus[i]==3)
             drawCross(x,y,25,"#0F0");
         x+=100;
         if(x>500)
@@ -158,7 +323,76 @@ function drawCircle(x, y, radius,color)
     ctx.lineWidth = 5;
     ctx.stroke();
 }
+function precalculateEverything()
+{
+    drawStatuses=[];
+    circleWinnerStatuses=[];
+    crossWinnerStatuses=[];
+    var i,j;
+    var possibilities=Math.pow(movePossibilities.length,9);
+    for(i=0;i<possibilities;i++)
+    {
+        graph[i]=allMoves(i);
+        fieldStatus=IntTofieldStatus(i);
+        if(checkEndingCondition())
+        {
+            if(isCrossWinner == isCircleWinner)
+                drawStatuses.push(i);
+            else if(isCrossWinner)
+                crossWinnerStatuses.push(i);
+            else if(isCircleWinner)
+                circleWinnerStatuses.push(i);
+        }
+    }
+   // alert("Draws: "+drawStatuses.length+"\ncrossWin: "+crossWinnerStatuses.length+"\ncircleWin: "+circleWinnerStatuses.length);
+}
+function moveIA()
+{
+    var current=fieldStatusToInt(fieldStatus);
+    var next;
+    next=graph[current][rand(0,graph[current].length)];
+    while(!isLegal(current,next,!isPlayer1Circle,isPlayer1Circle))
+        next=graph[current][rand(0,graph[current].length)];
+    fieldStatus=IntTofieldStatus(next);
+}
+//generate all valid moves from 'from'
+function allMoves(from)
+{
+    var i;
+    var result=[];
+    var tmpField=IntTofieldStatus(from);
+    if(activeRules==0)
+    {
+        //mettere o un 1 o un 2 dove c'è zero
+        for(i=0;i<9;i++)
+        {
+            if(tmpField[i]==0)
+            {
+                tmpField[i]=1;
+                result.push(fieldStatusToInt(tmpField));
+                tmpField[i]=2;
+                result.push(fieldStatusToInt(tmpField));
+                tmpField[i]=0;
+            }
+        }
 
+    }
+    return result;
+}
+function isLegal(from, to, canPlayCircle, canPlayCross)
+{
+    var fromField=IntTofieldStatus(from);
+    var toField=IntTofieldStatus(to);
+    if(activeRules==0)
+    {
+        for(i=0;i<9;i++)
+            if(fromField[i]==0 && toField[i]==1 && canPlayCross)
+                return true;
+            else if(fromField[i]==0 && toField[i]==2 && canPlayCircle)
+                return true;
+    }
+    return false;
+}
 
 /*#############
     Funzioni Utili
