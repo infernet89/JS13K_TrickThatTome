@@ -29,7 +29,8 @@ var isCrossWinner=false;
 var circleWinnerStatuses=[];
 var crossWinnerStatuses=[];
 var drawStatuses=[];
-var graph=[];
+var graphCross=[];
+var graphCircle=[];
 
 //mobile controls
 var mousex=-100;
@@ -332,7 +333,8 @@ function precalculateEverything()
     var possibilities=Math.pow(movePossibilities.length,9);
     for(i=0;i<possibilities;i++)
     {
-        graph[i]=allMoves(i);
+        graphCross[i]=allMoves(i,1);
+        graphCircle[i]=allMoves(i,2);
         fieldStatus=IntTofieldStatus(i);
         if(checkEndingCondition())
         {
@@ -350,13 +352,25 @@ function moveIA()
 {
     var current=fieldStatusToInt(fieldStatus);
     var next;
-    next=graph[current][rand(0,graph[current].length)];
-    while(!isLegal(current,next,!isPlayer1Circle,isPlayer1Circle))
-        next=graph[current][rand(0,graph[current].length)];
+    next=graphCircle[current][rand(0,graphCircle[current].length-1)];
     fieldStatus=IntTofieldStatus(next);
 }
+function evalBestMove(currentStatus, playableVal)
+{
+    if(playableVal==1 && crossWinnerStatuses.indexOf(currentStatus)!=-1)
+        return 1;
+    else if(playableVal==2 && crossWinnerStatuses.indexOf(currentStatus)!=-1)
+        return -2;
+    else if(playableVal==2 && circleWinnerStatuses.indexOf(currentStatus)!=-1)
+        return 1;
+    else if(playableVal==1 && circleWinnerStatuses.indexOf(currentStatus)!=-1)
+        return -2;
+    else if(drawStatuses.indexOf(currentStatus)!=-1)
+        return 0;
+
+}
 //generate all valid moves from 'from'
-function allMoves(from)
+function allMoves(from, playableVal)
 {
     var i;
     var result=[];
@@ -368,9 +382,7 @@ function allMoves(from)
         {
             if(tmpField[i]==0)
             {
-                tmpField[i]=1;
-                result.push(fieldStatusToInt(tmpField));
-                tmpField[i]=2;
+                tmpField[i]=playableVal;
                 result.push(fieldStatusToInt(tmpField));
                 tmpField[i]=0;
             }
@@ -379,21 +391,6 @@ function allMoves(from)
     }
     return result;
 }
-function isLegal(from, to, canPlayCircle, canPlayCross)
-{
-    var fromField=IntTofieldStatus(from);
-    var toField=IntTofieldStatus(to);
-    if(activeRules==0)
-    {
-        for(i=0;i<9;i++)
-            if(fromField[i]==0 && toField[i]==1 && canPlayCross)
-                return true;
-            else if(fromField[i]==0 && toField[i]==2 && canPlayCircle)
-                return true;
-    }
-    return false;
-}
-
 /*#############
     Funzioni Utili
 ##############*/
