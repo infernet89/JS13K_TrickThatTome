@@ -351,22 +351,74 @@ function precalculateEverything()
 function moveIA()
 {
     var current=fieldStatusToInt(fieldStatus);
-    var next;
-    next=graphCircle[current][rand(0,graphCircle[current].length-1)];
-    fieldStatus=IntTofieldStatus(next);
+    var j;
+    var tmp;
+    var max=-999;
+    var maxStatus=0;
+    if(activeRules==0 && isPlayer1Circle)
+        for(j=0;j<graphCross[current].length;j++)
+        {
+            tmp=evalBestMove(graphCross[current][j],1);
+            if(tmp>max)
+            {
+                max=tmp;
+                maxStatus=graphCross[current][j];
+            }
+        }
+            
+    else if(activeRules==0 && !isPlayer1Circle)
+        for(j=0;j<graphCircle[current].length;j++)
+        {
+            tmp=evalBestMove(graphCircle[current][j],0);
+            if(tmp>max)
+            {
+                max=tmp;
+                maxStatus=graphCircle[current][j];
+            }
+        }
+            
+    if(maxStatus!=0)
+    {
+        fieldStatus=IntTofieldStatus(maxStatus);
+    }
 }
-function evalBestMove(currentStatus, playableVal)
+function evalBestMove(currentStatus, playableVal)//playableVal 0=circle 1=x TODO fix aggregation, its still wrong..
 {
-    if(playableVal==1 && crossWinnerStatuses.indexOf(currentStatus)!=-1)
+    if(isPlayer1Circle && crossWinnerStatuses.indexOf(currentStatus)!=-1)
         return 1;
-    else if(playableVal==2 && crossWinnerStatuses.indexOf(currentStatus)!=-1)
+    else if(!isPlayer1Circle && crossWinnerStatuses.indexOf(currentStatus)!=-1)
         return -2;
-    else if(playableVal==2 && circleWinnerStatuses.indexOf(currentStatus)!=-1)
+    else if(!isPlayer1Circle && circleWinnerStatuses.indexOf(currentStatus)!=-1)
         return 1;
-    else if(playableVal==1 && circleWinnerStatuses.indexOf(currentStatus)!=-1)
+    else if(isPlayer1Circle && circleWinnerStatuses.indexOf(currentStatus)!=-1)
         return -2;
     else if(drawStatuses.indexOf(currentStatus)!=-1)
         return 0;
+    else
+    {
+        var j;
+        var min=9999999;
+        var max=-99999999
+        var tmp;
+        if(activeRules==0 && playableVal==0)
+            for(j=0;j<graphCross[currentStatus].length;j++)
+            {
+                tmp=evalBestMove(graphCross[currentStatus][j],1);
+                if(min>tmp) min=tmp;
+                if(max<tmp) max=tmp;
+            }
+        else if(activeRules==0 && playableVal==1)
+            for(j=0;j<graphCircle[currentStatus].length;j++)
+            {
+                tmp=evalBestMove(graphCross[currentStatus][j],0);
+                if(min>tmp) min=tmp;
+                if(max<tmp) max=tmp;
+            }
+        if(isPlayer1Circle && playableVal==0)
+            return min;
+        else
+            return max;
+    }
 
 }
 //generate all valid moves from 'from'
