@@ -106,43 +106,50 @@ function checkEndingCondition()
     if(activeRules==0)
     {
         //dall'angolo 0
-        if( fieldStatus[0]!=0 &&
+        if( fieldStatus[0]!=0 && (
             (fieldStatus[0]==fieldStatus[1] && fieldStatus[0]==fieldStatus[2]) ||
             (fieldStatus[0]==fieldStatus[3] && fieldStatus[0]==fieldStatus[6]) ||
-            (fieldStatus[0]==fieldStatus[4] && fieldStatus[0]==fieldStatus[8]) )
+            (fieldStatus[0]==fieldStatus[4] && fieldStatus[0]==fieldStatus[8]) ) )
         {
             if(fieldStatus[0]==2)
                 isCircleWinner=true;
             else if(fieldStatus[0]==1)
                 isCrossWinner=true;
             endGame=true;
+            //console.log("Win dall'angolo zero");
         }
         //dall'angolo 8
-        if( fieldStatus[8]!=0 &&
+        if( fieldStatus[8]!=0 && (
             (fieldStatus[8]==fieldStatus[5] && fieldStatus[8]==fieldStatus[2]) ||
-            (fieldStatus[8]==fieldStatus[7] && fieldStatus[8]==fieldStatus[6]) )
+            (fieldStatus[8]==fieldStatus[7] && fieldStatus[8]==fieldStatus[6]) ) )
         {
             if(fieldStatus[8]==2)
                 isCircleWinner=true;
             else if(fieldStatus[8]==1)
                 isCrossWinner=true;
             endGame=true;
+            //console.log("Win dall'angolo otto");
         }
         //dal centro
-        if( fieldStatus[4]!=0 &&
+        if( fieldStatus[4]!=0 && (
             (fieldStatus[4]==fieldStatus[1] && fieldStatus[4]==fieldStatus[7]) ||
             (fieldStatus[4]==fieldStatus[3] && fieldStatus[4]==fieldStatus[5]) ||
-            (fieldStatus[4]==fieldStatus[6] && fieldStatus[4]==fieldStatus[2]) )
+            (fieldStatus[4]==fieldStatus[6] && fieldStatus[4]==fieldStatus[2]) ) )
         {
             if(fieldStatus[4]==2)
                 isCircleWinner=true;
             else if(fieldStatus[4]==1)
                 isCrossWinner=true;
             endGame=true;
+            //console.log("Win dal centro");
         }
         //no more places left
         if(fieldStatus.indexOf(0)==-1)
+        {
             endGame=true;
+            //console.log("no more places left");
+        }
+           
     }
 
 
@@ -159,6 +166,7 @@ function checkEndingCondition()
     {
         isPlayer1Winner=!isPlayer1Circle;
     }
+    //console.log(endGame);
     return endGame;
 }
 function drawHud()
@@ -185,13 +193,13 @@ function drawHud()
         ctx.fillText("Enemy turn",320,50);
     ctx.font = "35px Verdana";    
 
-    if(isPlayer1Winner && isEnemyWinner)
+    /*if(isPlayer1Winner && isEnemyWinner)
         ctx.fillText("Draw!",350,575);
     else if(isPlayer1Winner)
         ctx.fillText("You won!",320,575);
     else if(isEnemyWinner)
         ctx.fillText("You lost!",320,575);
-    else
+    else*/
         ctx.fillText(fieldStatusToInt(fieldStatus),320,575);
 }
 function startGame()
@@ -353,28 +361,30 @@ function moveIA()
     var current=fieldStatusToInt(fieldStatus);
     var j;
     var tmp;
-    var max=-999;
+    var max=-99999999;
     var maxStatus=0;
     if(activeRules==0 && isPlayer1Circle)
         for(j=0;j<graphCross[current].length;j++)
         {
-            tmp=evalBestMove(graphCross[current][j],1);
+            tmp=evalBestMove(graphCross[current][j],1,1);
             if(tmp>max)
             {
                 max=tmp;
                 maxStatus=graphCross[current][j];
             }
+            console.log(tmp+" status: "+graphCross[current][j]);
         }
             
     else if(activeRules==0 && !isPlayer1Circle)
         for(j=0;j<graphCircle[current].length;j++)
         {
-            tmp=evalBestMove(graphCircle[current][j],0);
+            tmp=evalBestMove(graphCircle[current][j],0,1);
             if(tmp>max)
             {
                 max=tmp;
                 maxStatus=graphCircle[current][j];
             }
+            console.log(tmp+" status: "+graphCircle[current][j]);
         }
             
     if(maxStatus!=0)
@@ -382,16 +392,17 @@ function moveIA()
         fieldStatus=IntTofieldStatus(maxStatus);
     }
 }
-function evalBestMove(currentStatus, playableVal)//playableVal 0=circle 1=x TODO fix aggregation, its still wrong..
+function evalBestMove(currentStatus, playedVal,depth)//playedVal 0=circle 1=x TODO fix aggregation, its still wrong..
 {
+    depth=depth+1;
     if(isPlayer1Circle && crossWinnerStatuses.indexOf(currentStatus)!=-1)
-        return 1;
+        return 1000;
     else if(!isPlayer1Circle && crossWinnerStatuses.indexOf(currentStatus)!=-1)
-        return -2;
+        return -2000;
     else if(!isPlayer1Circle && circleWinnerStatuses.indexOf(currentStatus)!=-1)
-        return 1;
+        return 1000;
     else if(isPlayer1Circle && circleWinnerStatuses.indexOf(currentStatus)!=-1)
-        return -2;
+        return -2000;
     else if(drawStatuses.indexOf(currentStatus)!=-1)
         return 0;
     else
@@ -400,24 +411,28 @@ function evalBestMove(currentStatus, playableVal)//playableVal 0=circle 1=x TODO
         var min=9999999;
         var max=-99999999
         var tmp;
-        if(activeRules==0 && playableVal==0)
+        if(activeRules==0 && playedVal==0)
             for(j=0;j<graphCross[currentStatus].length;j++)
             {
-                tmp=evalBestMove(graphCross[currentStatus][j],1);
+                tmp=evalBestMove(graphCross[currentStatus][j],1,depth);
                 if(min>tmp) min=tmp;
                 if(max<tmp) max=tmp;
             }
-        else if(activeRules==0 && playableVal==1)
+        else if(activeRules==0 && playedVal==1)
             for(j=0;j<graphCircle[currentStatus].length;j++)
             {
-                tmp=evalBestMove(graphCross[currentStatus][j],0);
+                tmp=evalBestMove(graphCircle[currentStatus][j],0,depth);
+                if(depth==2)
+                    console.log("currentStatus="+currentStatus+" depth="+depth+" val="+tmp);
                 if(min>tmp) min=tmp;
                 if(max<tmp) max=tmp;
             }
-        if(isPlayer1Circle && playableVal==0)
-            return min;
+        if(isPlayer1Circle && playedVal==1)
+            return min/depth;
+        else if(!isPlayer1Circle && playedVal==0)
+            return min/depth;
         else
-            return max;
+            return max/depth;
     }
 
 }
