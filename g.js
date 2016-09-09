@@ -17,8 +17,12 @@ var rules=[Array("The player who succeeds in",
                  "placing three of their marks",
                  "in a horizontal, vertical,",
                  "or diagonal row wins."),
+            Array("The player who places",
+                 "three of their marks",
+                 "in a horizontal, vertical,",
+                 "or diagonal row LOSE."),
             Array("","","")];
-var activeRules=0;
+var activeRules=1;//0-classic 1-loserWins
 var isPlayer1Circle=true;
 var isPlayer1Turn=true;
 var endGame=false;
@@ -70,20 +74,6 @@ function run()
     ctx.fillStyle="#000000";
     ctx.fillRect(0,0,canvasW,canvasH);
 
-    //manage clicks
-    if(player1Turn && dragging)
-    {
-        var index=translateCoordInFieldIndex(mousex,mousey);
-        if(index>=0)
-        {
-            if(isPlayer1Circle)
-                fieldStatus[index]=2;
-            else
-                fieldStatus[index]=1;
-            dragging=false;
-        }
-    }
-
     drawPlayField();
 
     if(level==0)
@@ -95,6 +85,28 @@ function run()
     {
         checkEndingCondition();
         drawHud();
+        //manage plays
+        if(!endGame)
+        {
+            if(player1Turn && dragging)
+            {
+                var index=translateCoordInFieldIndex(mousex,mousey);
+                if(index>=0 && fieldStatus[index]==0)
+                {
+                    if(isPlayer1Circle)
+                        fieldStatus[index]=2;
+                    else
+                        fieldStatus[index]=1;
+                    dragging=false;
+                    isPlayer1Turn=false;
+                }
+            }
+            else if(!isPlayer1Turn)
+            {
+                moveIA();
+                isPlayer1Turn=true;
+            }
+        } 
     }
 }
 function checkEndingCondition()
@@ -103,7 +115,7 @@ function checkEndingCondition()
     isCircleWinner=false;
     isCrossWinner=false;
 
-    if(activeRules==0)
+    if(activeRules<=1)
     {
         //dall'angolo 0
         if( fieldStatus[0]!=0 && (
@@ -151,6 +163,13 @@ function checkEndingCondition()
         }
            
     }
+    //losers wins
+    if(endGame && activeRules ==1)
+    {
+        var tmp=isCircleWinner;
+        isCircleWinner=isCrossWinner;
+        isCrossWinner=tmp;
+    }
 
 
     if(isCircleWinner==isCrossWinner)
@@ -161,10 +180,12 @@ function checkEndingCondition()
     else if(isCircleWinner)
     {
         isPlayer1Winner=isPlayer1Circle;
+        isEnemyWinner=!isPlayer1Circle;
     }
     else if(isCrossWinner)
     {
         isPlayer1Winner=!isPlayer1Circle;
+        isEnemyWinner=isPlayer1Circle;
     }
     //console.log(endGame);
     return endGame;
@@ -187,19 +208,23 @@ function drawHud()
         drawCircle(150,540,15,"#0F0");
     else
         drawCross(150,540,15,"#F00");
-    if(isPlayer1Turn)
+    if(endGame)
+        ctx.fillText("Game ended",320,50);
+    else if(isPlayer1Turn)
         ctx.fillText("Your turn",320,50);
     else
         ctx.fillText("Enemy turn",320,50);
     ctx.font = "35px Verdana";    
 
-    /*if(isPlayer1Winner && isEnemyWinner)
+    if(isPlayer1Winner && isEnemyWinner)
         ctx.fillText("Draw!",350,575);
     else if(isPlayer1Winner)
         ctx.fillText("You won!",320,575);
     else if(isEnemyWinner)
         ctx.fillText("You lost!",320,575);
-    else*/
+    else if(endGame)
+         ctx.fillText("Draw!",350,575);
+    else
         ctx.fillText(fieldStatusToInt(fieldStatus),320,575);
 }
 function startGame()
@@ -363,7 +388,7 @@ function moveIA()
     var tmp;
     var max=-99999999;
     var maxStatus=0;
-    if(activeRules==0 && isPlayer1Circle)
+    if(activeRules<=1 && isPlayer1Circle)
         for(j=0;j<graphCross[current].length;j++)
         {
             tmp=evalBestMove(graphCross[current][j],1,1);
@@ -372,10 +397,10 @@ function moveIA()
                 max=tmp;
                 maxStatus=graphCross[current][j];
             }
-            console.log(tmp+" status: "+graphCross[current][j]);
+            //console.log(tmp+" status: "+graphCross[current][j]);
         }
             
-    else if(activeRules==0 && !isPlayer1Circle)
+    else if(activeRules<=1 && !isPlayer1Circle)
         for(j=0;j<graphCircle[current].length;j++)
         {
             tmp=evalBestMove(graphCircle[current][j],0,1);
@@ -384,7 +409,7 @@ function moveIA()
                 max=tmp;
                 maxStatus=graphCircle[current][j];
             }
-            console.log(tmp+" status: "+graphCircle[current][j]);
+            //console.log(tmp+" status: "+graphCircle[current][j]);
         }
             
     if(maxStatus!=0)
@@ -411,19 +436,17 @@ function evalBestMove(currentStatus, playedVal,depth)//playedVal 0=circle 1=x TO
         var min=9999999;
         var max=-99999999
         var tmp;
-        if(activeRules==0 && playedVal==0)
+        if(activeRules<=1 && playedVal==0)
             for(j=0;j<graphCross[currentStatus].length;j++)
             {
                 tmp=evalBestMove(graphCross[currentStatus][j],1,depth);
                 if(min>tmp) min=tmp;
                 if(max<tmp) max=tmp;
             }
-        else if(activeRules==0 && playedVal==1)
+        else if(activeRules<=1 && playedVal==1)
             for(j=0;j<graphCircle[currentStatus].length;j++)
             {
                 tmp=evalBestMove(graphCircle[currentStatus][j],0,depth);
-                if(depth==2)
-                    console.log("currentStatus="+currentStatus+" depth="+depth+" val="+tmp);
                 if(min>tmp) min=tmp;
                 if(max<tmp) max=tmp;
             }
@@ -442,7 +465,7 @@ function allMoves(from, playableVal)
     var i;
     var result=[];
     var tmpField=IntTofieldStatus(from);
-    if(activeRules==0)
+    if(activeRules<=1)
     {
         //mettere o un 1 o un 2 dove c'è zero
         for(i=0;i<9;i++)
