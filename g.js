@@ -21,8 +21,14 @@ var rules=[Array("The player who succeeds in",
                  "three of their marks",
                  "in a horizontal, vertical,",
                  "or diagonal row LOSE."),
+            Array("The player who succeeds in",
+                 "placing three of their marks",
+                 "in a horizontal, vertical,",
+                 "or diagonal row wins. BUT",
+                 "whenever a mark is placed",
+                 "all touching marks FLIPS."),
             Array("","","")];
-var activeRules=1;//0-classic 1-loserWins
+var activeRules=2;//0-classic 1-loserWins 2-placingFlipNearbyPositions
 var isPlayer1Circle=true;
 var isPlayer1Turn=true;
 var endGame=false;
@@ -93,10 +99,32 @@ function run()
                 var index=translateCoordInFieldIndex(mousex,mousey);
                 if(index>=0 && fieldStatus[index]==0)
                 {
+                    //maybe rules can be differnt here
                     if(isPlayer1Circle)
                         fieldStatus[index]=2;
                     else
                         fieldStatus[index]=1;
+                    if(activeRules==2)
+                    {
+                        if([1,4,3].indexOf(index)!=-1)
+                            fieldStatus[0]=flipMark(fieldStatus[0]);
+                        if([0,3,4,5,2].indexOf(index)!=-1)
+                            fieldStatus[1]=flipMark(fieldStatus[1]);
+                        if([1,4,5].indexOf(index)!=-1)
+                            fieldStatus[2]=flipMark(fieldStatus[2]);
+                        if([0,1,4,7,6].indexOf(index)!=-1)
+                            fieldStatus[3]=flipMark(fieldStatus[3]);
+                        if([0,1,2,3,5,6,7,8].indexOf(index)!=-1)
+                            fieldStatus[4]=flipMark(fieldStatus[4]);
+                        if([2,1,4,7,8].indexOf(index)!=-1)
+                            fieldStatus[5]=flipMark(fieldStatus[5]);
+                        if([3,4,7].indexOf(index)!=-1)
+                            fieldStatus[6]=flipMark(fieldStatus[6]);
+                        if([6,3,4,5,8].indexOf(index)!=-1)
+                            fieldStatus[7]=flipMark(fieldStatus[7]);
+                        if([7,4,5].indexOf(index)!=-1)
+                            fieldStatus[8]=flipMark(fieldStatus[8]);
+                    }
                     dragging=false;
                     isPlayer1Turn=false;
                 }
@@ -109,13 +137,22 @@ function run()
         } 
     }
 }
+function flipMark(val)
+{
+    if(val==1)
+        return 2;
+    else if(val==2)
+        return 1;
+    else
+        return val;
+}
 function checkEndingCondition()
 {
     endGame=false;
     isCircleWinner=false;
     isCrossWinner=false;
 
-    if(activeRules<=1)
+    if(activeRules<=2)
     {
         //dall'angolo 0
         if( fieldStatus[0]!=0 && (
@@ -388,7 +425,7 @@ function moveIA()
     var tmp;
     var max=-99999999;
     var maxStatus=0;
-    if(activeRules<=1 && isPlayer1Circle)
+    if(activeRules<=2 && isPlayer1Circle)
         for(j=0;j<graphCross[current].length;j++)
         {
             tmp=evalBestMove(graphCross[current][j],1,1);
@@ -400,7 +437,7 @@ function moveIA()
             //console.log(tmp+" status: "+graphCross[current][j]);
         }
             
-    else if(activeRules<=1 && !isPlayer1Circle)
+    else if(activeRules<=2 && !isPlayer1Circle)
         for(j=0;j<graphCircle[current].length;j++)
         {
             tmp=evalBestMove(graphCircle[current][j],0,1);
@@ -436,14 +473,14 @@ function evalBestMove(currentStatus, playedVal,depth)//playedVal 0=circle 1=x TO
         var min=9999999;
         var max=-99999999
         var tmp;
-        if(activeRules<=1 && playedVal==0)
+        if(activeRules<=2 && playedVal==0)
             for(j=0;j<graphCross[currentStatus].length;j++)
             {
                 tmp=evalBestMove(graphCross[currentStatus][j],1,depth);
                 if(min>tmp) min=tmp;
                 if(max<tmp) max=tmp;
             }
-        else if(activeRules<=1 && playedVal==1)
+        else if(activeRules<=2 && playedVal==1)
             for(j=0;j<graphCircle[currentStatus].length;j++)
             {
                 tmp=evalBestMove(graphCircle[currentStatus][j],0,depth);
@@ -465,7 +502,7 @@ function allMoves(from, playableVal)
     var i;
     var result=[];
     var tmpField=IntTofieldStatus(from);
-    if(activeRules<=1)
+    if(activeRules<=2)
     {
         //mettere o un 1 o un 2 dove c'è zero
         for(i=0;i<9;i++)
@@ -473,7 +510,50 @@ function allMoves(from, playableVal)
             if(tmpField[i]==0)
             {
                 tmpField[i]=playableVal;
+                //flip nearby
+                if(activeRules==2)
+                {
+                    if([1,4,3].indexOf(i)!=-1)
+                        tmpField[0]=flipMark(tmpField[0]);
+                    if([0,3,4,5,2].indexOf(i)!=-1)
+                        tmpField[1]=flipMark(tmpField[1]);
+                    if([1,4,5].indexOf(i)!=-1)
+                        tmpField[2]=flipMark(tmpField[2]);
+                    if([0,1,4,7,6].indexOf(i)!=-1)
+                        tmpField[3]=flipMark(tmpField[3]);
+                    if([0,1,2,3,5,6,7,8].indexOf(i)!=-1)
+                        tmpField[4]=flipMark(tmpField[4]);
+                    if([2,1,4,7,8].indexOf(i)!=-1)
+                        tmpField[5]=flipMark(tmpField[5]);
+                    if([3,4,7].indexOf(i)!=-1)
+                        tmpField[6]=flipMark(tmpField[6]);
+                    if([6,3,4,5,8].indexOf(i)!=-1)
+                        tmpField[7]=flipMark(tmpField[7]);
+                    if([7,4,5].indexOf(i)!=-1)
+                        tmpField[8]=flipMark(tmpField[8]);
+                }
                 result.push(fieldStatusToInt(tmpField));
+                if(activeRules==2)
+                {
+                    if([1,4,3].indexOf(i)!=-1)
+                        tmpField[0]=flipMark(tmpField[0]);
+                    if([0,3,4,5,2].indexOf(i)!=-1)
+                        tmpField[1]=flipMark(tmpField[1]);
+                    if([1,4,5].indexOf(i)!=-1)
+                        tmpField[2]=flipMark(tmpField[2]);
+                    if([0,1,4,7,6].indexOf(i)!=-1)
+                        tmpField[3]=flipMark(tmpField[3]);
+                    if([0,1,2,3,5,6,7,8].indexOf(i)!=-1)
+                        tmpField[4]=flipMark(tmpField[4]);
+                    if([2,1,4,7,8].indexOf(i)!=-1)
+                        tmpField[5]=flipMark(tmpField[5]);
+                    if([3,4,7].indexOf(i)!=-1)
+                        tmpField[6]=flipMark(tmpField[6]);
+                    if([6,3,4,5,8].indexOf(i)!=-1)
+                        tmpField[7]=flipMark(tmpField[7]);
+                    if([7,4,5].indexOf(i)!=-1)
+                        tmpField[8]=flipMark(tmpField[8]);
+                }
                 tmpField[i]=0;
             }
         }
