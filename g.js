@@ -27,8 +27,14 @@ var rules=[Array("The player who succeeds in",
                  "or diagonal row wins. BUT",
                  "whenever a mark is placed",
                  "all touching marks FLIPS."),
+            Array("The player who succeeds in",
+                 "placing three of their marks",
+                 "in a horizontal, vertical,",
+                 "or diagonal row wins. You",
+                 "can choose wich mark play by",
+                 "clicking on it."),
             Array("","","")];
-var activeRules=2;//0-classic 1-loserWins 2-placingFlipNearbyPositions
+var activeRules=0;//0-classic 1-loserWins 2-placingFlipNearbyPositions, 3-choose mark
 var isPlayer1Circle=true;
 var isPlayer1Turn=true;
 var endGame=false;
@@ -36,6 +42,7 @@ var isPlayer1Winner=false;
 var isEnemyWinner=false;
 var isCircleWinner=false;
 var isCrossWinner=false;
+var isHumanTurn=false;//used on simulations ONLY.
 var circleWinnerStatuses=[];
 var crossWinnerStatuses=[];
 var drawStatuses=[];
@@ -127,12 +134,20 @@ function run()
                     }
                     dragging=false;
                     isPlayer1Turn=false;
+                    isHumanTurn=false;
+                }
+                else if(activeRules==3 && mousex>130 && mousex<170 && mousey>520 && mousey<560)//TODO check if inside marker
+                {
+                    //flip mark
+                    isPlayer1Circle=!isPlayer1Circle;
+                    dragging=false;
                 }
             }
             else if(!isPlayer1Turn)
             {
                 moveIA();
                 isPlayer1Turn=true;
+                isHumanTurn=true;
             }
         } 
     }
@@ -152,7 +167,7 @@ function checkEndingCondition()
     isCircleWinner=false;
     isCrossWinner=false;
 
-    if(activeRules<=2)
+    if(activeRules<=3)
     {
         //dall'angolo 0
         if( fieldStatus[0]!=0 && (
@@ -206,6 +221,14 @@ function checkEndingCondition()
         var tmp=isCircleWinner;
         isCircleWinner=isCrossWinner;
         isCrossWinner=tmp;
+    }
+    //choose marker
+    if(endGame && activeRules==3)
+    {
+        if(isHumanTurn)
+            isPlayer1Winner=isCrossWinner || isCircleWinner;
+        else
+            isEnemyWinner=isCrossWinner || isCircleWinner;
     }
 
 
@@ -267,6 +290,7 @@ function drawHud()
 function startGame()
 {
     isPlayer1Turn=flipCoin();
+    isHumanTurn=isPlayer1Turn;
     isPlayer1Circle=flipCoin();
     fieldStatus=[0,0,0,0,0,0,0,0,0]
     isPlayer1Winner=false;
@@ -421,6 +445,49 @@ function precalculateEverything()
 function moveIA()
 {
     var current=fieldStatusToInt(fieldStatus);
+    //small fix for too much waiting
+    if([0,13122,6561,4374,2187,1458,729,486,243,162,81,54,18,27,9,6,3,2,1].indexOf(current)!=-1 && activeRules==3)
+    {
+        if(current==0)
+            fieldStatus=IntTofieldStatus(81);
+        if(current==13122)
+            fieldStatus=IntTofieldStatus(15309);
+        if(current==6561)
+            fieldStatus=IntTofieldStatus(6588);
+        if(current==4374)
+            fieldStatus=IntTofieldStatus(10935);
+        if(current==2187)
+            fieldStatus=IntTofieldStatus(2196);
+        if(current==1458)
+            fieldStatus=IntTofieldStatus(8019);
+        if(current==729)
+            fieldStatus=IntTofieldStatus(972);
+        if(current==486)
+            fieldStatus=IntTofieldStatus(7047);
+        if(current==243)
+            fieldStatus=IntTofieldStatus(972);
+        if(current==162)
+            fieldStatus=IntTofieldStatus(2349);
+        if(current==81)
+            fieldStatus=IntTofieldStatus(4455);
+        if(current==54)
+            fieldStatus=IntTofieldStatus(2241);
+        if(current==18)
+            fieldStatus=IntTofieldStatus(6579);
+        if(current==27)
+            fieldStatus=IntTofieldStatus(6588);
+        if(current==9)
+            fieldStatus=IntTofieldStatus(2196);
+        if(current==6)
+            fieldStatus=IntTofieldStatus(2193);
+        if(current==3)
+            fieldStatus=IntTofieldStatus(6564);
+        if(current==2)
+            fieldStatus=IntTofieldStatus(6563);
+        if(current==1)
+            fieldStatus=IntTofieldStatus(2188);
+        return;
+    }
     var j;
     var tmp;
     var max=-99999999;
@@ -448,6 +515,30 @@ function moveIA()
             }
             //console.log(tmp+" status: "+graphCircle[current][j]);
         }
+    //we need to explore BOTH graphs
+    else if(activeRules==3)
+    {
+        for(j=0;j<graphCross[current].length;j++)
+        {
+            tmp=evalBestMove(graphCross[current][j],1,1);
+            if(tmp>max)
+            {
+                max=tmp;
+                maxStatus=graphCross[current][j];
+            }
+            //console.log(tmp+" status: "+graphCross[current][j]);
+        }
+        for(j=0;j<graphCircle[current].length;j++)
+        {
+            tmp=evalBestMove(graphCircle[current][j],1,1);
+            if(tmp>max)
+            {
+                max=tmp;
+                maxStatus=graphCircle[current][j];
+            }
+            //console.log(tmp+" status: "+graphCircle[current][j]);
+        }
+    }
             
     if(maxStatus!=0)
     {
@@ -457,6 +548,17 @@ function moveIA()
 function evalBestMove(currentStatus, playedVal,depth)//playedVal 0=circle 1=x TODO fix aggregation, its still wrong..
 {
     depth=depth+1;
+    if(drawStatuses.indexOf(currentStatus)!=-1)
+        return 0;
+
+    if(activeRules==3 && (crossWinnerStatuses.indexOf(currentStatus)!=-1 || circleWinnerStatuses.indexOf(currentStatus)!=-1))
+    {
+        if(playedVal==0)
+            return -2000;
+        else
+            return 1000;
+    }
+
     if(isPlayer1Circle && crossWinnerStatuses.indexOf(currentStatus)!=-1)
         return 1000;
     else if(!isPlayer1Circle && crossWinnerStatuses.indexOf(currentStatus)!=-1)
@@ -465,15 +567,28 @@ function evalBestMove(currentStatus, playedVal,depth)//playedVal 0=circle 1=x TO
         return 1000;
     else if(isPlayer1Circle && circleWinnerStatuses.indexOf(currentStatus)!=-1)
         return -2000;
-    else if(drawStatuses.indexOf(currentStatus)!=-1)
-        return 0;
     else
     {
         var j;
         var min=9999999;
         var max=-99999999
         var tmp;
-        if(activeRules<=2 && playedVal==0)
+        if(activeRules==3)
+        {
+            for(j=0;j<graphCross[currentStatus].length;j++)
+            {
+                tmp=evalBestMove(graphCross[currentStatus][j],1-playedVal,depth);
+                if(min>tmp) min=tmp;
+                if(max<tmp) max=tmp;
+            }
+            for(j=0;j<graphCircle[currentStatus].length;j++)
+            {
+                tmp=evalBestMove(graphCircle[currentStatus][j],1-playedVal,depth);
+                if(min>tmp) min=tmp;
+                if(max<tmp) max=tmp;
+            }
+        }
+        else if(activeRules<=2 && playedVal==0)
             for(j=0;j<graphCross[currentStatus].length;j++)
             {
                 tmp=evalBestMove(graphCross[currentStatus][j],1,depth);
@@ -487,6 +602,15 @@ function evalBestMove(currentStatus, playedVal,depth)//playedVal 0=circle 1=x TO
                 if(min>tmp) min=tmp;
                 if(max<tmp) max=tmp;
             }
+
+        if(activeRules==3)
+        {
+            if(playedVal==1)
+                return min/depth;
+            else
+                return max/depth;
+        }
+
         if(isPlayer1Circle && playedVal==1)
             return min/depth;
         else if(!isPlayer1Circle && playedVal==0)
@@ -502,7 +626,7 @@ function allMoves(from, playableVal)
     var i;
     var result=[];
     var tmpField=IntTofieldStatus(from);
-    if(activeRules<=2)
+    if(activeRules<=3)
     {
         //mettere o un 1 o un 2 dove c'è zero
         for(i=0;i<9;i++)
