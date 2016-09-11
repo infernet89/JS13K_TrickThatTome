@@ -9,7 +9,7 @@ var canvasW;
 var canvasH;
 var ctx;
 var activeTask;
-var level=1;//0 menu TODO
+var level=0;//0 menu TODO
 var fieldStatus=[0,0,0,0,0,0,0,0,0];//0=vuoto; 1=red x; 2=green circle; 3=green x; 4=red Circle
 var player1Turn=true;
 var movePossibilities=["","rX","gO"]//,"gX","rO"];
@@ -48,6 +48,11 @@ var crossWinnerStatuses=[];
 var drawStatuses=[];
 var graphCross=[];
 var graphCircle=[];
+var IAdelay=50;
+var nWins=0;
+var nLost=0;
+var nDraw=0;
+var isGameOn=false;
 
 //mobile controls
 var mousex=-100;
@@ -77,7 +82,7 @@ canvas.addEventListener("mouseup",rilasciatoMouse);
 activeTask=setInterval(run, 33);
 //Initialize
 precalculateEverything();
-startGame();//TODO debug toglimi
+//startGame();//TODO debug toglimi
 
 //pictures
 
@@ -93,15 +98,55 @@ function run()
     {
         for(i=0;i<9;i++)
             fieldStatus[i]=rand(0,movePossibilities.length);
+        ctx.font = "40px Courier";
+        ctx.fillStyle="#666666";
+        ctx.fillRect(340,520,120,80);
+        ctx.fillStyle="#0000FF";
+        ctx.fillText("PLAY",350,570);
+        ctx.fillRect(350,600-20,90,1);
+        if(dragging && mousex>340 && mousex<460 && mousey>520 && mousey<600)
+        {
+            dragging=false;
+            level=1;
+            startGame();
+        }
     }
     else
     {
-        checkEndingCondition();
+        if(checkEndingCondition() && isGameOn)
+        {
+            isGameOn=false;
+            if(isCircleWinner == isCrossWinner)
+            {
+                var tmp=fieldStatus;
+                nDraw++;
+                //GLITCHES AND CHANGE RULES HERE
+                activeRules=rand(0,3);
+                precalculateEverything();
+                fieldStatus=tmp;
+            }                
+            if(activeRules<3)
+            {
+                if(isPlayer1Circle && isCircleWinner)
+                    nWins++;
+                else if(!isPlayer1Circle && isCrossWinner)
+                    nWins++;
+                else
+                    nLost++;
+            }
+            else if(activeRules==3)
+            {
+                if(isPlayer1Turn)
+                    nLost++;
+                else
+                    nWins++;
+            }
+        }
         drawHud();
         //manage plays
         if(!endGame)
         {
-            if(player1Turn && dragging)
+            if(isPlayer1Turn && dragging)
             {
                 var index=translateCoordInFieldIndex(mousex,mousey);
                 if(index>=0 && fieldStatus[index]==0)
@@ -145,6 +190,13 @@ function run()
             }
             else if(!isPlayer1Turn)
             {
+                if(--IAdelay>0)
+                {
+                    drawThinking();
+                    return;
+                }
+                else
+                    IAdelay=20;
                 moveIA();
                 isPlayer1Turn=true;
                 isHumanTurn=true;
@@ -277,15 +329,35 @@ function drawHud()
     ctx.font = "35px Verdana";    
 
     if(isPlayer1Winner && isEnemyWinner)
-        ctx.fillText("Draw!",350,575);
+        ctx.fillText("Draw!",350,180);
     else if(isPlayer1Winner)
-        ctx.fillText("You won!",320,575);
+        ctx.fillText("You won!",320,180);
     else if(isEnemyWinner)
-        ctx.fillText("You lost!",320,575);
+        ctx.fillText("You lost!",320,180);
     else if(endGame)
-         ctx.fillText("Draw!",350,575);
-    else
-        ctx.fillText(fieldStatusToInt(fieldStatus),320,575);
+         ctx.fillText("Draw!",350,180);
+    /*else
+        ctx.fillText(fieldStatusToInt(fieldStatus),320,575);*/
+    ctx.font = "13px Monospace";
+    ctx.fillText("Wins: "+nWins,600,540);
+    ctx.fillText("Lost: "+nLost,600,555);
+    ctx.fillText("Draw: "+nDraw,600,570);
+
+    if(endGame)
+    {
+        ctx.font = "40px Courier";
+        ctx.fillStyle="#666666";
+        ctx.fillRect(330,520,160,80);
+        ctx.fillStyle="#0000FF";
+        ctx.fillText("REPLAY",340,570);
+        ctx.fillRect(340,580,140,1);
+        if(dragging && mousex>330 && mousex<490 && mousey>520 && mousey<600)
+        {
+            dragging=false;
+            level=1;
+            startGame();
+        }
+    }
 }
 function startGame()
 {
@@ -298,6 +370,7 @@ function startGame()
     isCircleWinner=false;
     isCrossWinner=false;
     endGame=false;
+    isGameOn=true;
 }
 function flipCoin()
 {
@@ -442,6 +515,22 @@ function precalculateEverything()
     }
    // alert("Draws: "+drawStatuses.length+"\ncrossWin: "+crossWinnerStatuses.length+"\ncircleWin: "+circleWinnerStatuses.length);
 }
+function drawThinking()
+{
+    //some graphic feedback
+    var stringa;
+    ctx.clearRect(0, 0, 100, 100);
+    ctx.font = "15px Verdana";
+    ctx.fillStyle="#000000";
+    ctx.fillRect(0,0,200,200);
+    if(IAdelay%3==0)
+        stringa="Thinking...";
+    else if(IAdelay%2==0)
+        stringa="Thinking..";
+    else stringa="Thinking.";
+    ctx.fillStyle="#FFF";
+    ctx.fillText(stringa,10,20);
+}
 function moveIA()
 {
     var current=fieldStatusToInt(fieldStatus);
@@ -501,6 +590,8 @@ function moveIA()
                 max=tmp;
                 maxStatus=graphCross[current][j];
             }
+            else if(tmp==max && flipCoin())
+                maxStatus=graphCross[current][j];
             //console.log(tmp+" status: "+graphCross[current][j]);
         }
             
@@ -513,6 +604,8 @@ function moveIA()
                 max=tmp;
                 maxStatus=graphCircle[current][j];
             }
+            else if(tmp==max && flipCoin())
+                maxStatus=graphCircle[current][j];
             //console.log(tmp+" status: "+graphCircle[current][j]);
         }
     //we need to explore BOTH graphs
@@ -526,6 +619,8 @@ function moveIA()
                 max=tmp;
                 maxStatus=graphCross[current][j];
             }
+            else if(tmp==max && flipCoin())
+                maxStatus=graphCross[current][j];
             //console.log(tmp+" status: "+graphCross[current][j]);
         }
         for(j=0;j<graphCircle[current].length;j++)
@@ -536,6 +631,8 @@ function moveIA()
                 max=tmp;
                 maxStatus=graphCircle[current][j];
             }
+            else if(tmp==max && flipCoin())
+                maxStatus=graphCircle[current][j];
             //console.log(tmp+" status: "+graphCircle[current][j]);
         }
     }
@@ -547,6 +644,7 @@ function moveIA()
 }
 function evalBestMove(currentStatus, playedVal,depth)//playedVal 0=circle 1=x TODO fix aggregation, its still wrong..
 {
+    //drawThinking(); //cant do feedback on executing actions :(
     depth=depth+1;
     if(drawStatuses.indexOf(currentStatus)!=-1)
         return 0;
