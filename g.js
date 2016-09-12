@@ -125,13 +125,15 @@ function run()
                 precalculateEverything();
                 fieldStatus=tmp;
             }                
-            if(activeRules<3)
+            else if(activeRules<3)
             {
                 if(isPlayer1Circle && isCircleWinner)
                     nWins++;
                 else if(!isPlayer1Circle && isCrossWinner)
                     nWins++;
-                else
+                else if(isPlayer1Circle && isCrossWinner)
+                    nLost++;
+                else if(!isPlayer1Circle && isCircleWinner)
                     nLost++;
             }
             else if(activeRules==3)
