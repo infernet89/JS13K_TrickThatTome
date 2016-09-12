@@ -53,6 +53,7 @@ var nWins=0;
 var nLost=0;
 var nDraw=0;
 var isGameOn=false;
+var systemStability=100;
 
 //mobile controls
 var mousex=-100;
@@ -85,6 +86,12 @@ precalculateEverything();
 //startGame();//TODO debug toglimi
 
 //pictures
+var title=new Image();
+title.src="title.png";
+title.onload=function() {
+    this.height=730;
+    this.width=135;
+}
 
 function run()
 {
@@ -92,10 +99,15 @@ function run()
     ctx.fillStyle="#000000";
     ctx.fillRect(0,0,canvasW,canvasH);
 
+    ctx.font = "8px Monospace";
+    ctx.fillStyle="#FFF";
+    ctx.fillText("Made by: Infernet89",5,600);
+
     drawPlayField();
 
     if(level==0)
     {
+        ctx.drawImage(title,0,0,title.height,title.width);
         for(i=0;i<9;i++)
             fieldStatus[i]=rand(0,movePossibilities.length);
         ctx.font = "40px Courier";
@@ -121,6 +133,7 @@ function run()
                 var tmp=fieldStatus;
                 nDraw++;
                 //GLITCHES AND CHANGE RULES HERE
+                systemStability-=2;
                 activeRules=rand(0,3);
                 precalculateEverything();
                 fieldStatus=tmp;
@@ -128,21 +141,41 @@ function run()
             else if(activeRules<3)
             {
                 if(isPlayer1Circle && isCircleWinner)
+                {
                     nWins++;
+                    systemStability-=5;
+                }    
                 else if(!isPlayer1Circle && isCrossWinner)
+                {
                     nWins++;
+                    systemStability-=5;
+                }    
                 else if(isPlayer1Circle && isCrossWinner)
+                {
                     nLost++;
+                    systemStability+=10;
+                }
                 else if(!isPlayer1Circle && isCircleWinner)
+                {
                     nLost++;
+                    systemStability+=10;
+                }
             }
             else if(activeRules==3)
             {
                 if(isPlayer1Turn)
+                {
                     nLost++;
+                    systemStability+=10;
+                }
                 else
+                {
                     nWins++;
+                    systemStability-=5;
+                }    
             }
+            if(systemStability>100)
+                systemStability=100;
         }
         drawHud();
         //manage plays
@@ -311,9 +344,9 @@ function drawHud()
     ctx.fillText("RULES",50,280);
     ctx.font = "14px Verdana";
     var offset=0;
-    for(line of rules[activeRules])
+    for(i=0;i<rules[activeRules].length;i++)
     {
-        ctx.fillText(line,10,330+offset);
+        ctx.fillText(rules[activeRules][i],10,330+offset);
         offset+=20;
     }
     ctx.font = "30px Verdana";
@@ -344,6 +377,8 @@ function drawHud()
     ctx.fillText("Wins: "+nWins,600,540);
     ctx.fillText("Lost: "+nLost,600,555);
     ctx.fillText("Draw: "+nDraw,600,570);
+
+    ctx.fillText("System Stability: "+systemStability+"%",550,15);
 
     if(endGame)
     {
@@ -397,11 +432,12 @@ function IntTofieldStatus(number)
 function fieldStatusToInt(status)
 {
     var ris=0;
+    var k=0;
     var base=movePossibilities.length;
-    for(el of status)
+    for(k=0;k<status.length;k++)
     {
         ris*=base;
-        ris+=el;
+        ris+=status[k];
     }
     return ris;
 }
@@ -536,6 +572,16 @@ function drawThinking()
 function moveIA()
 {
     var current=fieldStatusToInt(fieldStatus);
+    if(rand(0,100)>systemStability)
+    {
+        var next;
+        if(activeRules<=2 && isPlayer1Circle)
+            next=graphCross[current][rand(0,graphCross[current].length-1)];
+        else 
+            next=graphCircle[current][rand(0,graphCircle[current].length-1)];
+        fieldStatus=IntTofieldStatus(next);
+        return;
+    }
     //small fix for too much waiting
     if([0,13122,6561,4374,2187,1458,729,486,243,162,81,54,18,27,9,6,3,2,1].indexOf(current)!=-1 && activeRules==3)
     {
